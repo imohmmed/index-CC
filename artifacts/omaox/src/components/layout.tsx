@@ -65,7 +65,7 @@ function Navbar() {
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-gold p-[1px] shadow-lg shadow-amber-500/20 group-hover:shadow-amber-500/40 transition-all duration-300">
                 <div className="w-full h-full rounded-xl bg-background flex items-center justify-center overflow-hidden">
-                  <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Omaox Logo" className="w-8 h-8 object-cover" />
+                  <img src={`${import.meta.env.BASE_URL}images/logo.svg`} alt="Omaox Logo" className="w-8 h-8 object-contain" />
                 </div>
               </div>
               <span className="text-2xl font-display font-bold text-gradient-gold tracking-tight">Omaox</span>
@@ -149,7 +149,7 @@ function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           <div className="md:col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6">
-              <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Omaox Logo" className="w-10 h-10" />
+              <img src={`${import.meta.env.BASE_URL}images/logo.svg`} alt="Omaox Logo" className="w-10 h-10" />
               <span className="text-2xl font-display font-bold text-gradient-gold">Omaox</span>
             </Link>
             <p className="text-zinc-400 leading-relaxed max-w-md mb-8">
