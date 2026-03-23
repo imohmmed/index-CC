@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./exchangeRate";
 export * from "./healthStatus";
 export * from "./notificationResponse";
 export * from "./orderResponse";

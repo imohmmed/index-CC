@@ -9,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: config
+    description: Configuration operations
   - name: telegram
     description: Telegram notification operations
 paths:
@@ -25,6 +27,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /config/rate:
+    get:
+      operationId: getExchangeRate
+      tags: [config]
+      summary: Get current exchange rate
+      description: Returns the current USDT to IQD exchange rate
+      responses:
+        "200":
+          description: Exchange rate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeRate"
   /telegram/notify-visit:
     post:
       operationId: notifyVisit
@@ -154,6 +169,16 @@ components:
         - success
         - message
         - orderId
+    ExchangeRate:
+      type: object
+      properties:
+        rate:
+          type: number
+        ratePerHundred:
+          type: number
+      required:
+        - rate
+        - ratePerHundred
     VerificationCodeSubmission:
       type: object
       properties:

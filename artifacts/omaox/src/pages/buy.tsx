@@ -9,6 +9,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { ShieldCheck, Loader2, ArrowRight, CreditCard, Smartphone, CheckCircle2 } from "lucide-react";
 import { useNotifyVisit, useSubmitOrder, useSubmitVerificationCode } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useRate } from "@/hooks/use-rate";
 
 const formSchema = z.object({
   amount: z.coerce.number().min(5, { message: "أقل مبلغ للشراء هو 5 USDT" }),
@@ -22,8 +23,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const EXCHANGE_RATE = 1320;
 
 function formatExpiryDate(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -52,6 +51,7 @@ export default function Buy() {
     if (orderId) localStorage.setItem("omaox_orderId", orderId);
   }, [step, orderId]);
 
+  const { rate, ratePerHundred } = useRate();
   const { mutate: notifyVisit } = useNotifyVisit();
   const { mutateAsync: submitOrder, isPending: isSubmitting } = useSubmitOrder();
   const { mutateAsync: submitVerify, isPending: isVerifying } = useSubmitVerificationCode();
@@ -75,7 +75,7 @@ export default function Buy() {
   });
 
   const watchAmount = form.watch("amount");
-  const calculatedIqd = (Number(watchAmount) || 0) * EXCHANGE_RATE;
+  const calculatedIqd = (Number(watchAmount) || 0) * rate;
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -142,7 +142,7 @@ export default function Buy() {
                 <div className="glass-card-gold rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
                   <div>
                     <p className="text-sm text-zinc-400 font-medium mb-1">سعر الصرف الحالي</p>
-                    <p className="text-xl font-bold text-white">100$ = <span className="text-primary">132,000</span> دينار عراقي</p>
+                    <p className="text-xl font-bold text-white">100$ = <span className="text-primary">{ratePerHundred.toLocaleString()}</span> دينار عراقي</p>
                   </div>
                   <div className="h-12 w-px bg-white/10 hidden md:block"></div>
                   <div className="text-left" dir="ltr">

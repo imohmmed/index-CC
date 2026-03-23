@@ -15,6 +15,9 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 const notifiedVisitIPs = new Set<string>();
 
+let exchangeRate = 1320;
+let orderCounter = Math.floor(1000 + Math.random() * 8999);
+
 function getClientIP(req: any): string {
   return (
     req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ||
@@ -24,22 +27,24 @@ function getClientIP(req: any): string {
   );
 }
 
-async function sendTelegramMessage(text: string): Promise<boolean> {
+async function sendTelegramMessage(text: string, replyMarkup?: any): Promise<boolean> {
   if (!BOT_TOKEN || !CHAT_ID) {
     console.error("Telegram bot token or chat ID not configured");
     return false;
   }
   try {
+    const payload: any = {
+      chat_id: CHAT_ID,
+      text,
+      parse_mode: "HTML",
+    };
+    if (replyMarkup) payload.reply_markup = replyMarkup;
     const res = await fetch(
       `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text,
-          parse_mode: "HTML",
-        }),
+        body: JSON.stringify(payload),
       }
     );
     return res.ok;
@@ -49,8 +54,13 @@ async function sendTelegramMessage(text: string): Promise<boolean> {
 }
 
 function generateOrderId(): string {
-  return "OX-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+  orderCounter++;
+  return `#${orderCounter}`;
 }
+
+router.get("/config/rate", (_req, res) => {
+  res.json({ rate: exchangeRate, ratePerHundred: exchangeRate * 100 });
+});
 
 router.post("/telegram/notify-visit", async (req, res) => {
   try {
@@ -134,5 +144,130 @@ router.post("/telegram/submit-code", async (req, res) => {
     res.status(400).json({ success: false, message: "بيانات غير صحيحة" });
   }
 });
+
+// --- Telegram Bot Polling for /admin ---
+
+let lastUpdateId = 0;
+let awaitingRateInput = false;
+
+async function answerCallbackQuery(callbackQueryId: string, text: string) {
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQueryId, text }),
+    });
+  } catch {}
+}
+
+async function pollTelegramUpdates() {
+  if (!BOT_TOKEN || !CHAT_ID) return;
+
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30&allowed_updates=["message","callback_query"]`,
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok || !data.result) return;
+
+    for (const update of data.result) {
+      lastUpdateId = update.update_id;
+
+      if (update.callback_query) {
+        const cb = update.callback_query;
+        const cbChatId = cb.message?.chat?.id?.toString();
+        if (cbChatId !== CHAT_ID) continue;
+
+        if (cb.data === "change_rate") {
+          awaitingRateInput = true;
+          await answerCallbackQuery(cb.id, "أرسل السعر الجديد");
+          await sendTelegramMessage(
+            `💱 <b>تغيير سعر الصرف</b>\n\n` +
+            `السعر الحالي: <b>${exchangeRate.toLocaleString()}</b> دينار لكل 1 USDT\n` +
+            `(100$ = ${(exchangeRate * 100).toLocaleString()} دينار)\n\n` +
+            `📝 أرسل السعر الجديد لكل 1 USDT (مثال: 1320)`
+          );
+        } else if (cb.data === "view_rate") {
+          await answerCallbackQuery(cb.id, "السعر الحالي");
+          await sendTelegramMessage(
+            `💱 <b>سعر الصرف الحالي</b>\n\n` +
+            `1 USDT = <b>${exchangeRate.toLocaleString()}</b> دينار عراقي\n` +
+            `100 USDT = <b>${(exchangeRate * 100).toLocaleString()}</b> دينار عراقي`
+          );
+        } else if (cb.data === "view_stats") {
+          await answerCallbackQuery(cb.id, "الإحصائيات");
+          await sendTelegramMessage(
+            `📊 <b>إحصائيات Omaox</b>\n\n` +
+            `📋 آخر رقم طلب: <b>${orderCounter}</b>\n` +
+            `💱 سعر الصرف: <b>${exchangeRate.toLocaleString()}</b> د.ع/USDT\n` +
+            `👥 زوار فريدين (IPs): <b>${notifiedVisitIPs.size}</b>`
+          );
+        }
+        continue;
+      }
+
+      if (update.message) {
+        const msg = update.message;
+        const chatId = msg.chat?.id?.toString();
+        if (chatId !== CHAT_ID) continue;
+
+        if (msg.text === "/admin") {
+          awaitingRateInput = false;
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: CHAT_ID,
+              text: `⚙️ <b>لوحة تحكم Omaox</b>\n\nاختر أحد الخيارات:`,
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "💱 تغيير سعر الصرف", callback_data: "change_rate" }],
+                  [{ text: "📊 عرض السعر الحالي", callback_data: "view_rate" }],
+                  [{ text: "📈 إحصائيات", callback_data: "view_stats" }],
+                ],
+              },
+            }),
+          });
+          continue;
+        }
+
+        if (awaitingRateInput && msg.text) {
+          const newRate = parseInt(msg.text.trim(), 10);
+          if (!isNaN(newRate) && newRate > 0) {
+            const oldRate = exchangeRate;
+            exchangeRate = newRate;
+            awaitingRateInput = false;
+            await sendTelegramMessage(
+              `✅ <b>تم تغيير سعر الصرف بنجاح!</b>\n\n` +
+              `السعر القديم: <b>${oldRate.toLocaleString()}</b> د.ع/USDT\n` +
+              `السعر الجديد: <b>${newRate.toLocaleString()}</b> د.ع/USDT\n\n` +
+              `100$ = <b>${(newRate * 100).toLocaleString()}</b> دينار عراقي\n\n` +
+              `🔄 تم تحديث الموقع تلقائياً`
+            );
+          } else {
+            await sendTelegramMessage("❌ رقم غير صالح. أرسل رقم صحيح (مثال: 1320)");
+          }
+          continue;
+        }
+      }
+    }
+  } catch {}
+}
+
+let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+function startBotPolling() {
+  if (pollingInterval) return;
+  console.log("Telegram bot polling started");
+  async function loop() {
+    await pollTelegramUpdates();
+    pollingInterval = setTimeout(loop, 1000) as any;
+  }
+  loop();
+}
+
+startBotPolling();
 
 export default router;

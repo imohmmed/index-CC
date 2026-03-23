@@ -16,6 +16,15 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * Returns the current USDT to IQD exchange rate
+ * @summary Get current exchange rate
+ */
+export const GetExchangeRateResponse = zod.object({
+  rate: zod.number(),
+  ratePerHundred: zod.number(),
+});
+
+/**
  * Sends a Telegram notification when someone visits the buy form
  * @summary Notify form visit
  */

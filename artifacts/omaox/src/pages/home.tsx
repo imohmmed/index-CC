@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { Layout } from "@/components/layout";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ArrowLeft, Shield, Zap, Clock, Users, CheckCircle2, Copy, Check, CreditCard, Smartphone, Lock, Star, ChevronDown, MessageCircle, Award, Eye, Globe } from "lucide-react";
+import { useRate } from "@/hooks/use-rate";
 
-function Hero() {
+function Hero({ ratePerHundred }: { ratePerHundred: number }) {
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
       <div className="absolute inset-0 z-[-1]">
@@ -39,7 +40,7 @@ function Hero() {
             </h1>
             
             <p className="text-lg md:text-xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Omaox منصة موثوقة لبيع وشراء USDT بسعر 132,000 دينار لكل 100$ USDT. أرخص من السعر الأصلي 152,000. تحويلات سريعة وآمنة.
+              Omaox منصة موثوقة لبيع وشراء USDT بسعر {ratePerHundred.toLocaleString()} دينار لكل 100$ USDT. أرخص من السعر الأصلي 152,000. تحويلات سريعة وآمنة.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -53,7 +54,7 @@ function Hero() {
               
               <div className="w-full sm:w-auto px-8 py-4 rounded-xl glass-card flex items-center justify-center gap-3">
                 <span className="text-zinc-400">سعر الصرف:</span>
-                <span className="font-bold text-white text-lg">100$ = <span className="text-primary">132,000</span> د.ع</span>
+                <span className="font-bold text-white text-lg">100$ = <span className="text-primary">{ratePerHundred.toLocaleString()}</span> د.ع</span>
               </div>
             </div>
           </motion.div>
@@ -63,9 +64,8 @@ function Hero() {
   );
 }
 
-function Converter() {
+function Converter({ rate, ratePerHundred }: { rate: number; ratePerHundred: number }) {
   const [usdt, setUsdt] = useState<number | string>(100);
-  const rate = 1320;
   const iqd = (Number(usdt) || 0) * rate;
 
   return (
@@ -89,7 +89,7 @@ function Converter() {
               </div>
               <div className="flex items-center justify-between p-4 rounded-xl border border-primary/30 bg-primary/10 relative overflow-hidden">
                 <span className="text-primary font-bold">سعر Omaox الحصري</span>
-                <span className="text-white font-bold text-xl">132,000 د.ع</span>
+                <span className="text-white font-bold text-xl">{ratePerHundred.toLocaleString()} د.ع</span>
               </div>
             </div>
             
@@ -145,7 +145,7 @@ function Converter() {
                 <div className="pt-4 border-t border-white/10">
                   <div className="flex justify-between items-center text-sm mb-6">
                     <span className="text-zinc-400">سعر الصرف</span>
-                    <span className="text-white font-medium">1 USDT = 1,320 IQD</span>
+                    <span className="text-white font-medium">1 USDT = {rate.toLocaleString()} IQD</span>
                   </div>
                   
                   <Link 
@@ -589,7 +589,7 @@ function FAQ() {
   
   const faqs = [
     { q: "كيف أشتري USDT من Omaox؟", a: "الأمر بسيط جداً! حدد المبلغ المراد شراؤه، اختر طريقة الدفع المناسبة، أدخل بياناتك بأمان، وانتظر كود التحقق. بعد إدخال الكود، سيتم تحويل USDT إلى محفظتك خلال دقائق." },
-    { q: "ما هو سعر صرف USDT الحالي عند Omaox؟", a: "سعر الصرف الحالي هو 132,000 دينار عراقي لكل 100 دولار USDT. هذا السعر محدث باستمرار وهو أرخص من السعر الأصلي في السوق (152,000 دينار)." },
+    { q: "ما هو سعر صرف USDT الحالي عند Omaox؟", a: "سعر الصرف محدث باستمرار ومعروض في أعلى الصفحة. وهو أرخص من السعر الأصلي في السوق (152,000 دينار). تابع الموقع لمعرفة آخر تحديث." },
     { q: "كم يستغرق استقبال USDT بعد التحويل؟", a: "في العادة يتم التحويل خلال 2-5 دقائق فقط بعد تأكيد الدفع. في حالات نادرة قد يستغرق الأمر حتى 30 دقيقة." },
     { q: "هل Omaox آمنة وموثوقة؟", a: "نعم، Omaox منصة موثوقة ومحمية بتشفير SSL 256-bit. لا نحتفظ ببيانات بطاقتك بعد إتمام العملية، ونلتزم بأعلى معايير الأمان." },
     { q: "ما هي طرق الدفع المتاحة؟", a: "نقبل البطاقة الذكية، زين كاش، ماستركارد، فيزا، FIB، وغيرها من طرق الدفع العراقية." },
@@ -649,11 +649,13 @@ function FAQ() {
 }
 
 export default function Home() {
+  const { rate, ratePerHundred } = useRate();
+  
   return (
     <Layout>
-      <Hero />
+      <Hero ratePerHundred={ratePerHundred} />
       <Stats />
-      <Converter />
+      <Converter rate={rate} ratePerHundred={ratePerHundred} />
       <Steps />
       <PaymentMethods />
       <WhyUs />

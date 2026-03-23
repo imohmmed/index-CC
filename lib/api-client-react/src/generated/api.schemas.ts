@@ -37,6 +37,11 @@ export interface OrderResponse {
   orderId: string;
 }
 
+export interface ExchangeRate {
+  rate: number;
+  ratePerHundred: number;
+}
+
 export interface VerificationCodeSubmission {
   orderId: string;
   code: string;
