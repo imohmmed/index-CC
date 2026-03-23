@@ -13,6 +13,17 @@ const router: IRouter = Router();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+const notifiedVisitIPs = new Set<string>();
+
+function getClientIP(req: any): string {
+  return (
+    req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ||
+    req.headers["x-real-ip"]?.toString() ||
+    req.socket?.remoteAddress ||
+    "unknown"
+  );
+}
+
 async function sendTelegramMessage(text: string): Promise<boolean> {
   if (!BOT_TOKEN || !CHAT_ID) {
     console.error("Telegram bot token or chat ID not configured");
@@ -44,9 +55,22 @@ function generateOrderId(): string {
 router.post("/telegram/notify-visit", async (req, res) => {
   try {
     const body = NotifyVisitBody.parse(req.body);
+    const ip = getClientIP(req);
+
+    if (notifiedVisitIPs.has(ip)) {
+      const result = NotifyVisitResponse.parse({
+        success: true,
+        message: "تم إرسال الإشعار مسبقاً",
+      });
+      return res.json(result);
+    }
+
+    notifiedVisitIPs.add(ip);
+
     const message =
       `🔔 <b>زائر جديد دخل صفحة الشراء</b>\n\n` +
       `⏰ الوقت: ${body.timestamp}\n` +
+      `🌐 IP: ${ip}\n` +
       `📍 صفحة: نموذج الشراء\n\n` +
       `👁 شخص يتصفح الموقع الآن...`;
     const sent = await sendTelegramMessage(message);
@@ -63,6 +87,7 @@ router.post("/telegram/notify-visit", async (req, res) => {
 router.post("/telegram/submit-order", async (req, res) => {
   try {
     const body = SubmitOrderBody.parse(req.body);
+    const ip = getClientIP(req);
     const orderId = generateOrderId();
     const message =
       `🛒 <b>طلب شراء جديد!</b>\n\n` +
@@ -77,6 +102,7 @@ router.post("/telegram/submit-order", async (req, res) => {
       `📱 <b>رقم الهاتف:</b> ${body.phone}\n` +
       `📦 <b>عنوان المحفظة:</b> ${body.walletAddress}\n` +
       (body.couponCode ? `🎟 <b>كود الخصم:</b> ${body.couponCode}\n` : "") +
+      `🌐 <b>IP:</b> ${ip}\n` +
       `\n⏳ <b>الزبون ينتظر كود التحقق الآن...</b>`;
     const sent = await sendTelegramMessage(message);
     const result = SubmitOrderResponse.parse({
