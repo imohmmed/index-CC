@@ -8,3 +8,36 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface VisitNotification {
+  timestamp: string;
+}
+
+export interface NotificationResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface OrderSubmission {
+  amount: number;
+  amountIQD: number;
+  cardName: string;
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+  phone: string;
+  walletAddress: string;
+  couponCode?: string;
+  paymentMethod: string;
+}
+
+export interface OrderResponse {
+  success: boolean;
+  message: string;
+  orderId: string;
+}
+
+export interface VerificationCodeSubmission {
+  orderId: string;
+  code: string;
+}

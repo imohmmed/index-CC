@@ -1,0 +1,22 @@
+packages:
+  "framer-motion": "For premium smooth animations and page transitions"
+  "react-hook-form": "For robust form state management in the buy page"
+  "@hookform/resolvers": "For integrating Zod validation with react-hook-form"
+  "clsx": "For constructing className strings conditionally"
+  "tailwind-merge": "For merging tailwind classes without style conflicts"
+
+images:
+  - path: "artifacts/omaox/public/images/hero-bg.png"
+    description: "Abstract luxury dark background with glowing gold and amber lines, subtle light leaks, high end financial trading aesthetic, dark mode"
+    aspect_ratio: "16:9"
+  - path: "artifacts/omaox/public/images/logo.png"
+    description: "Minimalist geometric logo mark 'Omaox' in metallic gold on transparent background, luxury crypto brand"
+    aspect_ratio: "1:1"
+  - path: "artifacts/omaox/public/images/gold-pattern.png"
+    description: "Subtle abstract geometric gold wireframe pattern on transparent background for section decoration"
+    aspect_ratio: "16:9"
+
+notes:
+  - Assumes RTL direction is supported globally.
+  - UI relies heavily on Tailwind CSS v4 features.
+  - Telegram integration APIs are assumed to be generated in @workspace/api-client-react.

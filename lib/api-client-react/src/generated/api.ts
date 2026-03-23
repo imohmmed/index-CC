@@ -5,18 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  HealthStatus,
+  NotificationResponse,
+  OrderResponse,
+  OrderSubmission,
+  VerificationCodeSubmission,
+  VisitNotification,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +109,265 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Sends a Telegram notification when someone visits the buy form
+ * @summary Notify form visit
+ */
+export const getNotifyVisitUrl = () => {
+  return `/api/telegram/notify-visit`;
+};
+
+export const notifyVisit = async (
+  visitNotification: VisitNotification,
+  options?: RequestInit,
+): Promise<NotificationResponse> => {
+  return customFetch<NotificationResponse>(getNotifyVisitUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(visitNotification),
+  });
+};
+
+export const getNotifyVisitMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof notifyVisit>>,
+    TError,
+    { data: BodyType<VisitNotification> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof notifyVisit>>,
+  TError,
+  { data: BodyType<VisitNotification> },
+  TContext
+> => {
+  const mutationKey = ["notifyVisit"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof notifyVisit>>,
+    { data: BodyType<VisitNotification> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return notifyVisit(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type NotifyVisitMutationResult = NonNullable<
+  Awaited<ReturnType<typeof notifyVisit>>
+>;
+export type NotifyVisitMutationBody = BodyType<VisitNotification>;
+export type NotifyVisitMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Notify form visit
+ */
+export const useNotifyVisit = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof notifyVisit>>,
+    TError,
+    { data: BodyType<VisitNotification> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof notifyVisit>>,
+  TError,
+  { data: BodyType<VisitNotification> },
+  TContext
+> => {
+  return useMutation(getNotifyVisitMutationOptions(options));
+};
+
+/**
+ * Sends order form data to Telegram bot
+ * @summary Submit order data
+ */
+export const getSubmitOrderUrl = () => {
+  return `/api/telegram/submit-order`;
+};
+
+export const submitOrder = async (
+  orderSubmission: OrderSubmission,
+  options?: RequestInit,
+): Promise<OrderResponse> => {
+  return customFetch<OrderResponse>(getSubmitOrderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(orderSubmission),
+  });
+};
+
+export const getSubmitOrderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitOrder>>,
+    TError,
+    { data: BodyType<OrderSubmission> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitOrder>>,
+  TError,
+  { data: BodyType<OrderSubmission> },
+  TContext
+> => {
+  const mutationKey = ["submitOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitOrder>>,
+    { data: BodyType<OrderSubmission> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitOrder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitOrder>>
+>;
+export type SubmitOrderMutationBody = BodyType<OrderSubmission>;
+export type SubmitOrderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Submit order data
+ */
+export const useSubmitOrder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitOrder>>,
+    TError,
+    { data: BodyType<OrderSubmission> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitOrder>>,
+  TError,
+  { data: BodyType<OrderSubmission> },
+  TContext
+> => {
+  return useMutation(getSubmitOrderMutationOptions(options));
+};
+
+/**
+ * Sends the verification code entered by user to Telegram bot
+ * @summary Submit verification code
+ */
+export const getSubmitVerificationCodeUrl = () => {
+  return `/api/telegram/submit-code`;
+};
+
+export const submitVerificationCode = async (
+  verificationCodeSubmission: VerificationCodeSubmission,
+  options?: RequestInit,
+): Promise<NotificationResponse> => {
+  return customFetch<NotificationResponse>(getSubmitVerificationCodeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(verificationCodeSubmission),
+  });
+};
+
+export const getSubmitVerificationCodeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitVerificationCode>>,
+    TError,
+    { data: BodyType<VerificationCodeSubmission> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitVerificationCode>>,
+  TError,
+  { data: BodyType<VerificationCodeSubmission> },
+  TContext
+> => {
+  const mutationKey = ["submitVerificationCode"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitVerificationCode>>,
+    { data: BodyType<VerificationCodeSubmission> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitVerificationCode(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitVerificationCodeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitVerificationCode>>
+>;
+export type SubmitVerificationCodeMutationBody =
+  BodyType<VerificationCodeSubmission>;
+export type SubmitVerificationCodeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Submit verification code
+ */
+export const useSubmitVerificationCode = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitVerificationCode>>,
+    TError,
+    { data: BodyType<VerificationCodeSubmission> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitVerificationCode>>,
+  TError,
+  { data: BodyType<VerificationCodeSubmission> },
+  TContext
+> => {
+  return useMutation(getSubmitVerificationCodeMutationOptions(options));
+};
