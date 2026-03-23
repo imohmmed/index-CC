@@ -37,10 +37,20 @@ function formatCardNumber(value: string): string {
 }
 
 export default function Buy() {
-  const [step, setStep] = useState<"form" | "verify" | "success">("form");
-  const [orderId, setOrderId] = useState<string>("");
+  const [step, setStep] = useState<"form" | "verify" | "success">(() => {
+    const saved = localStorage.getItem("omaox_step");
+    return (saved === "verify" || saved === "success") ? saved : "form";
+  });
+  const [orderId, setOrderId] = useState<string>(() => {
+    return localStorage.getItem("omaox_orderId") || "";
+  });
   const [code, setCode] = useState("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    localStorage.setItem("omaox_step", step);
+    if (orderId) localStorage.setItem("omaox_orderId", orderId);
+  }, [step, orderId]);
 
   const { mutate: notifyVisit } = useNotifyVisit();
   const { mutateAsync: submitOrder, isPending: isSubmitting } = useSubmitOrder();
@@ -393,6 +403,7 @@ export default function Buy() {
 
                   <Link 
                     href="/"
+                    onClick={() => { localStorage.removeItem("omaox_step"); localStorage.removeItem("omaox_orderId"); }}
                     className="block w-full py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors relative z-10"
                   >
                     العودة للرئيسية
