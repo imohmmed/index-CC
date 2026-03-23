@@ -153,12 +153,12 @@ export default function Buy() {
                             type="number"
                             inputMode="numeric"
                             className={cn(
-                              "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left",
+                              "w-full bg-black/40 border rounded-xl pr-4 pl-16 py-3 text-white focus:outline-none focus:ring-1 transition-all text-left",
                               form.formState.errors.amount ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-white/10 focus:border-primary focus:ring-primary"
                             )}
                             dir="ltr"
                           />
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">USDT</div>
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold pointer-events-none">USDT</div>
                         </div>
                         {form.formState.errors.amount && <p className="text-red-400 text-xs mt-1">{form.formState.errors.amount.message}</p>}
                         <p className="text-xs text-zinc-500 mt-2">الحد الأدنى: 5$</p>
