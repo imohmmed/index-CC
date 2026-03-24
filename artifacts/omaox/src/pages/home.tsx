@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout";
@@ -650,6 +650,11 @@ function FAQ() {
 
 export default function Home() {
   const { rate, ratePerHundred } = useRate();
+
+  useEffect(() => {
+    document.title = "Omaox | شراء USDT في العراق بأفضل سعر - منصة أوماكس الموثوقة";
+    document.querySelector('meta[name="description"]')?.setAttribute("content", "منصة Omaox أوماكس الموثوقة لشراء عملة USDT تيثر في العراق بأفضل الأسعار. سعر الصرف: 100$ = 132,000 دينار عراقي. تحويلات فورية وآمنة مع دعم 24/7.");
+  }, []);
   
   return (
     <Layout>

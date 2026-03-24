@@ -58,6 +58,11 @@ export default function Buy() {
   const { mutateAsync: submitVerify, isPending: isVerifying } = useSubmitVerificationCode();
 
   useEffect(() => {
+    document.title = "شراء USDT | Omaox أوماكس - شراء تيثر بالدينار العراقي";
+    document.querySelector('meta[name="description"]')?.setAttribute("content", "اشتري USDT تيثر الآن بالدينار العراقي عبر بطاقة الائتمان أو ماستركارد. تحويل فوري لمحفظتك. الحد الأدنى 5$. منصة Omaox أوماكس الموثوقة.");
+  }, []);
+
+  useEffect(() => {
     notifyVisit({ data: { timestamp: new Date().toISOString() } });
   }, [notifyVisit]);
 

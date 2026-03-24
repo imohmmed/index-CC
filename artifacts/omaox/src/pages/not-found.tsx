@@ -1,8 +1,13 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
+  useEffect(() => {
+    document.title = "404 - الصفحة غير موجودة | Omaox أوماكس";
+  }, []);
+
   return (
     <Layout>
       <div className="min-h-[70vh] flex items-center justify-center">
